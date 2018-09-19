@@ -18,10 +18,12 @@ def node(host, request):
     # because testinfra does not collect and provide ansible config passed in
     # from using --extra-vars
     ceph_stable_release = os.environ.get("CEPH_STABLE_RELEASE", "luminous")
+    rolling_update = os.environ.get("ROLLING_UPDATE", "False")
     group_names = ansible_vars["group_names"]
     docker = ansible_vars.get("docker")
     osd_auto_discovery = ansible_vars.get("osd_auto_discovery")
-    lvm_scenario = ansible_vars.get("osd_scenario") == 'lvm'
+    osd_scenario = ansible_vars.get("osd_scenario")
+    lvm_scenario = osd_scenario in ['lvm', 'lvm-batch']
     ceph_release_num = {
         'jewel': 10,
         'kraken': 11,
@@ -84,11 +86,17 @@ def node(host, request):
     subnet = ".".join(ansible_vars["public_network"].split(".")[0:-1])
     num_mons = len(ansible_vars["groups"]["mons"])
     if osd_auto_discovery:
-        num_devices = 3
+        num_osds = 3
     else:
-        num_devices = len(ansible_vars.get("devices", []))
-    if not num_devices:
-        num_devices = len(ansible_vars.get("lvm_volumes", []))
+        num_osds = len(ansible_vars.get("devices", []))
+    if not num_osds:
+        num_osds = len(ansible_vars.get("lvm_volumes", []))
+    osds_per_device = ansible_vars.get("osds_per_device", 1)
+    num_osds = num_osds * osds_per_device
+
+    # If number of devices doesn't map to number of OSDs, allow tests to define
+    # that custom number, defaulting it to ``num_devices``
+    num_osds = ansible_vars.get('num_osds', num_osds)
     cluster_name = ansible_vars.get("cluster", "ceph")
     conf_path = "/etc/ceph/{}.conf".format(cluster_name)
     if "osds" in group_names:
@@ -113,13 +121,15 @@ def node(host, request):
         vars=ansible_vars,
         osd_ids=osd_ids,
         num_mons=num_mons,
-        num_devices=num_devices,
+        num_osds=num_osds,
         cluster_name=cluster_name,
         conf_path=conf_path,
         cluster_address=cluster_address,
         docker=docker,
         osds=osds,
         ceph_stable_release=ceph_stable_release,
+        ceph_release_num=ceph_release_num,
+        rolling_update=rolling_update,
     )
     return data
 

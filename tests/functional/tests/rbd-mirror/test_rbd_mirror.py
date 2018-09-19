@@ -60,8 +60,12 @@ class TestRbdMirrors(object):
 
     @pytest.mark.from_luminous
     def test_rbd_mirror_is_up(self, node, host):
+        ceph_release_num=node['ceph_release_num']
+        ceph_stable_release=node['ceph_stable_release']
         hostname=node["vars"]["inventory_hostname"]
         cluster=node["cluster_name"]
+        rolling_update=node["rolling_update"]
+        daemons = []
         if node['docker']:
             docker_exec_cmd = 'docker exec ceph-rbd-mirror-{hostname}'.format(hostname=hostname)
         else:
@@ -74,5 +78,12 @@ class TestRbdMirrors(object):
             cluster=cluster
         )
         output = host.check_output(cmd)
-        daemons = [i for i in json.loads(output)["servicemap"]["services"]["rbd-mirror"]["daemons"]]
-        assert hostname in daemons
+        status = json.loads(output)
+        daemon_ids = [i for i in status["servicemap"]["services"]["rbd-mirror"]["daemons"].keys() if i != "summary"]
+        if ceph_release_num[ceph_stable_release] > ceph_release_num['luminous'] or (ceph_release_num[ceph_stable_release] == ceph_release_num['luminous'] and rolling_update=='True'):
+            for daemon_id in daemon_ids:
+                daemons.append(status["servicemap"]["services"]["rbd-mirror"]["daemons"][daemon_id]["metadata"]["hostname"])
+            result = hostname in daemons
+        else:
+            result = hostname in daemon_ids
+        assert result
