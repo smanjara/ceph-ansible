@@ -5,8 +5,8 @@
     haproxy_mode: http
     haproxy_backend: rgw
     haproxy_backend_servers:
-      - {name: rgw1, ip: "{{ rgw1_var }}", port: 8080, paramstring: check}
-      - {name: rgw2, ip: "{{ rgw2_var }}", port: 8080, paramstring: check}
+      - {name: rgw1, ip: "{{ ip_var0 }}", port: 8080, paramstring: check}
+      - {name: rgw2, ip: "{{ ip_var1 }}", port: 8080, paramstring: check}
     frontend_port: 8080
 
   tasks:
